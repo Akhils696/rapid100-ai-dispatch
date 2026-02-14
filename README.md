@@ -16,6 +16,7 @@ An AI-powered emergency call triage and routing system that transcribes calls in
 - Enhanced Small Language Model (SLM) for improved classification
 - Audio filtering and background noise extraction
 - Comprehensive emergency call dataset for training
+- Vector database integration with ChromaDB Cloud for knowledge management
 
 ## Architecture
 
@@ -23,6 +24,7 @@ An AI-powered emergency call triage and routing system that transcribes calls in
 - Frontend: React with Tailwind CSS
 - Speech-to-Text: OpenAI Whisper
 - NLP Models: DistilBERT for classification
+- Vector Database: ChromaDB Cloud
 - Real-time communication: WebSocket
 
 ## Setup Instructions
@@ -57,11 +59,13 @@ LOG_LEVEL=INFO
 WHISPER_MODEL_SIZE=tiny
 MAX_AUDIO_DURATION=300  # 5 minutes max
 ENABLE_MOCK_SERVICES=True  # Set to False when deploying with real models
-DATABASE_URL=sqlite:///./rapid100.db
 
 # Enhanced features
 OPENAI_API_KEY=your_openai_api_key_here  # For advanced Whisper API (optional)
 HUGGINGFACE_API_KEY=your_huggingface_api_key_here  # For model downloads (optional)
+CHROMADB_API_KEY=your_chromadb_api_key_here  # ChromaDB Cloud API key
+CHROMADB_TENANT=your_tenant_id  # ChromaDB Cloud tenant
+CHROMADB_DATABASE=your_database_name  # ChromaDB Cloud database
 AUDIO_FILTER_PRESET=noise_reduction_advanced  # Audio filtering preset
 SLM_TRAINING_ENABLED=True  # Enable SLM training
 ```
@@ -89,6 +93,13 @@ All emergency calls are automatically recorded and stored:
 - Automatic cleanup and organization
 - Secure storage in dedicated directory
 
+### Vector Database Integration
+The system includes ChromaDB Cloud integration for:
+- Storing and retrieving similar emergency scenarios
+- Providing enhanced context for emergency classification
+- Supporting continuous learning from historical data
+- Enabling semantic search capabilities
+
 ### Dataset
 The system includes a comprehensive dataset of emergency calls for training and validation:
 - 25 diverse emergency scenarios
@@ -103,6 +114,7 @@ The system includes a comprehensive dataset of emergency calls for training and 
 - `POST /api/classify` - Emergency classification
 - `GET /api/logs` - Call logs
 - `GET /api/simulate-call/{scenario}` - Simulate emergency calls
+- `GET /health` - Health check endpoint
 
 ### Enhanced Endpoints
 - `GET /api/recordings` - List all recorded calls
@@ -120,6 +132,7 @@ rapid100/
 │   ├── services/
 │   ├── utils/
 │   ├── tests/
+│   ├── knowledge_base.py      # NEW: Vector database integration
 │   ├── slm_emergency_classifier.py  # NEW: Small Language Model
 │   └── main.py
 ├── frontend/
