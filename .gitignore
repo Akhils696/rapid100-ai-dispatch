@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+__pycache__/
+.env
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+logs/
+*.tmp
+
+# Local configuration files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+*.db-journal
+
+# Audio files
+*.wav
+*.mp3
+*.m4a
+*.flac
+
+# Cache directories
+.cache/
+.chroma_db/
+
+# Distribution / packaging
+dist/
+build/
+*.msi
+
+# Sensitive files
+chroma_db/
+recordings/

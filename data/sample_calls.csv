@@ -1,0 +1,11 @@
+call_id,transcript,emergency_type,severity,location,timestamp
+1,"Help! My wife is unconscious and not breathing. She collapsed suddenly. Address is 123 Main St, Downtown. Please send an ambulance immediately!",MEDICAL,CRITICAL,"123 Main St, Downtown",2023-10-15T10:30:00Z
+2,"There's a fire at my house! Smoke is everywhere, flames coming from the kitchen. Address is 456 Oak Ave, Suburbia. Need firefighters now!",FIRE,HIGH,"456 Oak Ave, Suburbia",2023-10-15T11:45:00Z
+3,"Someone is breaking into my house! I hear glass breaking and footsteps. Address is 789 Pine Rd, Residential Area. Gunshots fired. Police needed immediately!",CRIME,HIGH,"789 Pine Rd, Residential Area",2023-10-15T12:20:00Z
+4,"Car accident on Highway 101 near Exit 15. Multiple cars involved, people injured. Blood everywhere. Need ambulances and police.",ACCIDENT,HIGH,"Highway 101 near Exit 15",2023-10-15T13:10:00Z
+5,"Tornado warning! Severe weather approaching downtown. Taking shelter in basement. Large debris flying. Need emergency management.",DISASTER,MEDIUM,"Downtown area",2023-10-15T14:05:00Z
+6,"My child has a high fever and is having trouble breathing. Not sure what to do. 555 Family Lane, Suburban Heights.",MEDICAL,MEDIUM,"555 Family Lane, Suburban Heights",2023-10-15T15:30:00Z
+7,"Small fire in my garage, mostly contained. Smoke alarm triggered. 777 Workshop Blvd, Industrial Park.",FIRE,LOW,"777 Workshop Blvd, Industrial Park",2023-10-15T16:45:00Z
+8,"Neighbor's dog is loose and acting aggressively. Bit someone earlier. 222 Pet Street, Residential Zone.",CRIME,LOW,"222 Pet Street, Residential Zone",2023-10-15T17:20:00Z
+9,"Fender-bender on Main Street. Both drivers are ok, just car damage. Intersection of Main and First.",ACCIDENT,LOW,"Intersection of Main and First",2023-10-15T18:10:00Z
+10,"Power outage affecting several blocks. Trees down on power lines. Downtown electrical grid affected.",DISASTER,MEDIUM,"Downtown electrical grid",2023-10-15T19:00:00Z

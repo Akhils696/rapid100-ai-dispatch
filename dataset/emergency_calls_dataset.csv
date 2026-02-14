@@ -1,0 +1,26 @@
+call_id,transcript,emergency_type,severity,location,background_noise,voice_clarity,emotion_intensity,timestamp
+1,"Help! My wife is unconscious and not breathing. She collapsed suddenly. Address is 123 Main St, Downtown. Please send an ambulance immediately!",MEDICAL,CRITICAL,"123 Main St, Downtown","Low","Clear",0.9,2023-10-15T10:30:00Z
+2,"There's a fire at my house! Smoke is everywhere, flames coming from the kitchen. Address is 456 Oak Ave, Suburbia. Need firefighters now!",FIRE,HIGH,"456 Oak Ave, Suburbia","Medium","Clear",0.8,2023-10-15T11:45:00Z
+3,"Someone is breaking into my house! I hear glass breaking and footsteps. Address is 789 Pine Rd, Residential Area. Gunshots fired. Police needed immediately!",CRIME,HIGH,"789 Pine Rd, Residential Area","High","Clear",0.9,2023-10-15T12:20:00Z
+4,"Car accident on Highway 101 near Exit 15. Multiple cars involved, people injured. Blood everywhere. Need ambulances and police.",ACCIDENT,HIGH,"Highway 101 near Exit 15","Low","Clear",0.7,2023-10-15T13:10:00Z
+5,"Tornado warning! Severe weather approaching downtown. Taking shelter in basement. Large debris flying. Need emergency management.",DISASTER,MEDIUM,"Downtown area","Medium","Clear",0.8,2023-10-15T14:05:00Z
+6,"My child has a high fever and is having trouble breathing. Not sure what to do. 555 Family Lane, Suburban Heights.",MEDICAL,MEDIUM,"555 Family Lane, Suburban Heights","Low","Clear",0.6,2023-10-15T15:30:00Z
+7,"Small fire in my garage, mostly contained. Smoke alarm triggered. 777 Workshop Blvd, Industrial Park.",FIRE,LOW,"777 Workshop Blvd, Industrial Park","Low","Clear",0.5,2023-10-15T16:45:00Z
+8,"Neighbor's dog is loose and acting aggressively. Bit someone earlier. 222 Pet Street, Residential Zone.",CRIME,LOW,"222 Pet Street, Residential Zone","Low","Clear",0.4,2023-10-15T17:20:00Z
+9,"Fender-bender on Main Street. Both drivers are ok, just car damage. Intersection of Main and First.",ACCIDENT,LOW,"Intersection of Main and First","Low","Clear",0.3,2023-10-15T18:10:00Z
+10,"Power outage affecting several blocks. Trees down on power lines. Downtown electrical grid affected.",DISASTER,MEDIUM,"Downtown electrical grid","Low","Clear",0.4,2023-10-15T19:00:00Z
+11,"Help! There's a lot of screaming in the background, sounds like a domestic dispute. Address is 111 Quiet Ln. Very distressed voice.","CRIME","HIGH","111 Quiet Ln","High","Clear",0.9,2023-10-15T19:30:00Z
+12,"Fire department, there's a burning smell but can't see flames yet. Garage area, address 222 Wood St.","FIRE","MEDIUM","222 Wood St","Low","Clear",0.6,2023-10-15T20:15:00Z
+13,"Multiple people shouting and sirens in background. Car crash on busy intersection. Many injured.","ACCIDENT","CRITICAL","Busy intersection","Very High","Clear",0.9,2023-10-15T21:00:00Z
+14,"Choking, can't breathe, oh God, help me. Address 333 Life Rd.","MEDICAL","CRITICAL","333 Life Rd","Low","Clear",1.0,2023-10-15T21:45:00Z
+15,"Loud bangs and screams. Sounds like gunshots. Location 444 Danger Ave. Multiple shots heard.","CRIME","CRITICAL","444 Danger Ave","High","Clear",1.0,2023-10-15T22:30:00Z
+16,"Strong winds, trees falling everywhere. Roof damaged. Need help at 555 Storm Dr.","DISASTER","HIGH","555 Storm Dr","High","Clear",0.8,2023-10-15T23:15:00Z
+17,"My elderly mother fell, she's conscious but in pain. Address 666 Care St.","MEDICAL","MEDIUM","666 Care St","Low","Clear",0.6,2023-10-16T08:00:00Z
+18,"Smoke detector going off, but house feels empty. Strange sounds in background. 777 Mystery Way.","FIRE","MEDIUM","777 Mystery Way","Medium","Clear",0.7,2023-10-16T08:45:00Z
+19,"Two cars collided, one person complaining of neck pain. Intersection of 888 Safe St and 999 Road Ave.","ACCIDENT","MEDIUM","Intersection of 888 Safe St and 999 Road Ave","Low","Clear",0.5,2023-10-16T09:30:00Z
+20,"Loud voices arguing, glass breaking, and crying. Domestic situation escalating. 1010 Trouble Pl.","CRIME","HIGH","1010 Trouble Pl","High","Clear",0.8,2023-10-16T10:15:00Z
+21,"Coughing, wheezing, can't catch breath. Allergic reaction. Need help now! 2020 Health Ln.","MEDICAL","HIGH","2020 Health Ln","Low","Clear",0.9,2023-10-16T11:00:00Z
+22,"Explosion sound in distance, followed by screaming. Address 3030 Boom St.","DISASTER","CRITICAL","3030 Boom St","Very High","Clear",1.0,2023-10-16T11:45:00Z
+23,"Weak voice, saying barely conscious. Possible overdose. 4040 Overdose Dr.","MEDICAL","CRITICAL","4040 Overdose Dr","Low","Unclear",0.9,2023-10-16T12:30:00Z
+24,"Loud music playing, people shouting over it. Someone fell and hit head. Party house at 5050 Loud Rd.","ACCIDENT","MEDIUM","5050 Loud Rd","Very High","Unclear",0.6,2023-10-16T13:15:00Z
+25,"Sounds like a burglary in progress. Breaking glass, running footsteps, and whispered voices. 6060 Silent St.","CRIME","HIGH","6060 Silent St","High","Clear",0.8,2023-10-16T14:00:00Z
