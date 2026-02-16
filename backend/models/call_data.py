@@ -25,6 +25,11 @@ class RoutingDecision(BaseModel):
     confidence: float
 
 
+class LocationData(BaseModel):
+    latitude: float
+    longitude: float
+    area: Optional[str] = None
+
 class CallData(BaseModel):
     call_id: str
     timestamp: datetime
@@ -35,6 +40,9 @@ class CallData(BaseModel):
     confidence: float
     explanation: str
     location: Optional[str] = None
+    location_data: Optional[LocationData] = None
     emotion_meter: Optional[float] = None
     noise_confidence: Optional[float] = None
     extracted_entities: Optional[Dict[str, Any]] = {}
+    language: Optional[str] = "en"
+    audio_quality_metrics: Optional[Dict[str, Any]] = {}

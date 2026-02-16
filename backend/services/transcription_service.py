@@ -40,34 +40,73 @@ class TranscriptionService:
         ]
         self.response_index = 0
 
-    async def process_audio_chunk(self, audio_data: bytes) -> str:
+    async def process_audio_chunk(self, audio_data: bytes, language: str = "en", noise_filtering: bool = True, sample_rate: int = 48000, audio_level: float = 0.0) -> str:
         """
-        Process an audio chunk and return the transcription
-        In a real implementation, this would accumulate audio chunks and periodically transcribe
+        Process an audio chunk and return the transcription with enhanced parameters
         """
         if self.model is not None:
             try:
+                # Preprocess audio if noise filtering is enabled
+                if noise_filtering:
+                    audio_data = self.preprocess_audio(audio_data)
+                
                 # Save audio data to temporary file
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
                     temp_file.write(audio_data)
                     temp_filename = temp_file.name
                 
-                # Load audio and transcribe
-                result = self.model.transcribe(temp_filename)
+                # Load audio and transcribe with language parameter
+                result = self.model.transcribe(
+                    temp_filename,
+                    language=language if language != "en" else None,  # Whisper auto-detects English
+                    task="transcribe"
+                )
                 
                 # Clean up temporary file
                 os.unlink(temp_filename)
                 
-                return result['text'].strip()
+                transcription = result['text'].strip()
+                
+                # Apply additional post-processing for better quality
+                if noise_filtering:
+                    transcription = self.post_process_transcription(transcription, audio_level)
+                
+                return transcription
             except Exception as e:
                 logger.error(f"Error transcribing audio: {e}")
                 return ""
         else:
-            # Mock transcription service for development
+            # Mock transcription service for development with language support
             response = self.mock_responses[self.response_index % len(self.mock_responses)]
             self.response_index += 1
             await asyncio.sleep(0.1)  # Simulate processing time
             return response
+    
+    def post_process_transcription(self, transcription: str, audio_level: float) -> str:
+        """
+        Apply post-processing to improve transcription quality
+        """
+        if not transcription:
+            return transcription
+        
+        # Remove common transcription artifacts
+        artifacts = ['uh', 'um', 'ah', 'you know', 'like', 'so', 'okay', 'right']
+        words = transcription.split()
+        filtered_words = []
+        
+        for word in words:
+            word_lower = word.lower().strip('.,!?;')
+            if word_lower not in artifacts or len(filtered_words) == 0 or filtered_words[-1].lower().strip('.,!?;') not in artifacts:
+                filtered_words.append(word)
+        
+        processed_text = ' '.join(filtered_words)
+        
+        # Apply basic sentence correction
+        processed_text = processed_text.strip()
+        if processed_text and not processed_text.endswith(('.', '!', '?')):
+            processed_text += '.'
+        
+        return processed_text
 
     def preprocess_audio(self, audio_data: bytes) -> bytes:
         """

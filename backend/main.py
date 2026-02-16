@@ -16,7 +16,7 @@ from services.classification_service import ClassificationService
 from services.severity_service import SeverityService
 from services.location_service import LocationService
 from services.explanation_service import ExplanationService
-from models.call_data import CallData, EmergencyType, SeverityLevel, RoutingDecision
+from models.call_data import CallData, EmergencyType, SeverityLevel, RoutingDecision, LocationData
 from slm_emergency_classifier import EmergencyCallSLM
 from knowledge_base import get_knowledge_base
 
@@ -89,34 +89,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize services
-transcription_service = TranscriptionService()
-classification_service = ClassificationService()
-severity_service = SeverityService()
-location_service = LocationService()
-explanation_service = ExplanationService()
+import os
+USE_MOCK_SERVICES = os.getenv("ENABLE_MOCK_SERVICES", "True").lower() == "true"
 
-# Initialize SLM
-slm = EmergencyCallSLM()
-try:
-    slm.train()
-    print("SLM loaded and trained successfully")
-except Exception as e:
-    print(f"Error loading SLM: {e}")
-    print("Using rule-based fallback")
+# Initialize services
+if USE_MOCK_SERVICES:
+    print("Using mock services for faster startup")
+    transcription_service = TranscriptionService()
+    classification_service = None
+    severity_service = None
+    location_service = None
+    explanation_service = None
+    slm = None
+    knowledge_base = None
+else:
+    print("Using full services")
+    transcription_service = TranscriptionService()
+    classification_service = ClassificationService()
+    severity_service = SeverityService()
+    location_service = LocationService()
+    explanation_service = ExplanationService()
+    
+    # Initialize SLM
+    slm = EmergencyCallSLM()
+    try:
+        slm.train()
+        print("SLM loaded and trained successfully")
+    except Exception as e:
+        print(f"Error loading SLM: {e}")
+        print("Using rule-based fallback")
+    
+    # Initialize knowledge base
+    knowledge_base = get_knowledge_base()
 
 # Store active connections
 active_connections: Dict[str, WebSocket] = {}
 
-# Initialize knowledge base
-knowledge_base = get_knowledge_base()
 
 @app.on_event("startup")
 async def startup_event():
     # Create logs directory if it doesn't exist
     os.makedirs("logs", exist_ok=True)
     logger.info("RAPID-100 system started")
-    logger.info(f"Knowledge base initialized with {knowledge_base.get_statistics()} entries")
+    if not USE_MOCK_SERVICES and knowledge_base:
+        logger.info(f"Knowledge base initialized with {knowledge_base.get_statistics()} entries")
+    else:
+        logger.info("Running in mock mode - knowledge base disabled")
 
 @app.websocket("/ws/transcribe/{call_id}")
 async def websocket_transcribe(websocket: WebSocket, call_id: str):
@@ -127,71 +145,185 @@ async def websocket_transcribe(websocket: WebSocket, call_id: str):
     call_recorder = CallRecorder(call_id)
     active_recordings[call_id] = call_recorder
     
+    # Initialize call parameters
+    current_language = "en"
+    noise_filtering_enabled = True
+    sample_rate = 48000
+    audio_level = 0.0
+    
     try:
         while True:
-            # Receive audio data from client
-            data = await websocket.receive_bytes()
+            # Receive data from client
+            data = await websocket.receive_text()
+            message = json.loads(data)
             
-            # Add audio data to recording
-            call_recorder.add_audio_segment(data)
+            # Handle configuration messages
+            if message.get("type") == "config":
+                current_language = message.get("language", "en")
+                noise_filtering_enabled = message.get("noise_filtering", True)
+                sample_rate = message.get("sample_rate", 48000)
+                logger.info(f"Call {call_id} configured: language={current_language}, noise_filtering={noise_filtering_enabled}")
+                continue
             
-            # Process audio chunk and get transcription
-            transcription = await transcription_service.process_audio_chunk(data)
-            
-            # Use SLM for enhanced classification
-            slm_result = slm.predict_call_details(transcription)
-            emergency_type = EmergencyType(slm_result['emergency_type'])
-            severity = SeverityLevel(slm_result['severity'])
-            
-            # Use knowledge base to find similar scenarios and enhance analysis
-            similar_scenarios = knowledge_base.search_similar_scenarios(transcription, n_results=3)
-            
-            # Use knowledge base to find relevant procedures
-            relevant_procedures = knowledge_base.search_procedures(f"{emergency_type.value} {transcription}", n_results=2)
-            
-            # Extract location
-            location = location_service.extract_location(transcription)
-            
-            # Generate explanation
-            explanation = explanation_service.generate_explanation(transcription, emergency_type, severity)
-            
-            # Create routing decision
-            routing_decision = RoutingDecision(
-                department=get_department_for_emergency(emergency_type),
-                confidence=0.9  # Placeholder - actual confidence should come from model
-            )
-            
-            # Log the call data
-            call_data = CallData(
-                call_id=call_id,
-                timestamp=datetime.utcnow(),
-                transcript=transcription,
-                predicted_class=emergency_type,
-                severity=severity,
-                routing_decision=routing_decision,
-                confidence=0.9,  # Placeholder
-                explanation=explanation,
-                emotion_meter=slm_result['emotion_intensity'],
-                noise_confidence=0.5,  # Placeholder for noise level
-                extracted_entities=slm_result['features']
-            )
-            
-            log_call_data(call_data)
-            
-            # Send response back to client
-            response = {
-                "transcript": transcription,
-                "emergency_type": emergency_type.value,
-                "severity": severity.value,
-                "location": location,
-                "routing_decision": routing_decision.dict(),
-                "explanation": explanation,
-                "timestamp": call_data.timestamp.isoformat(),
-                "similar_scenarios": [scenario['metadata'] for scenario in similar_scenarios],
-                "relevant_procedures": [proc for proc in relevant_procedures]
-            }
-            
-            await websocket.send_json(response)
+            # Handle audio chunks
+            elif message.get("type") == "audio_chunk":
+                # Convert data back to bytes
+                audio_data = bytes(message["data"])
+                audio_level = message.get("audio_level", 0)
+                timestamp = message.get("timestamp")
+                
+                # Add audio data to recording
+                call_recorder.add_audio_segment(audio_data)
+                
+                # Process audio chunk with enhanced parameters
+                transcription = await transcription_service.process_audio_chunk(
+                    audio_data, 
+                    language=current_language,
+                    noise_filtering=noise_filtering_enabled,
+                    sample_rate=sample_rate,
+                    audio_level=audio_level
+                )
+                            
+                if transcription.strip():
+                    if USE_MOCK_SERVICES:
+                        # Mock service responses - dynamically determine type and severity based on content
+                        text_lower = transcription.lower()
+                        
+                        # Determine emergency type based on keywords in transcription
+                        if any(keyword in text_lower for keyword in ['fire', 'smoke', 'burn', 'flame']):
+                            emergency_type = EmergencyType.FIRE
+                        elif any(keyword in text_lower for keyword in ['police', 'crime', 'gun', 'shot', 'break', 'robbery', 'assault']):
+                            emergency_type = EmergencyType.CRIME
+                        elif any(keyword in text_lower for keyword in ['accident', 'crash', 'collision', 'car', 'hit']):
+                            emergency_type = EmergencyType.ACCIDENT
+                        elif any(keyword in text_lower for keyword in ['weather', 'tornado', 'hurricane', 'flood', 'earthquake']):
+                            emergency_type = EmergencyType.DISASTER
+                        else:
+                            emergency_type = EmergencyType.MEDICAL  # Default to medical
+                        
+                        # Determine severity based on keywords in transcription
+                        if any(keyword in text_lower for keyword in ['unconscious', 'not breathing', 'heart attack', 'stroke', 'dying', 'critical']):
+                            severity = SeverityLevel.CRITICAL
+                        elif any(keyword in text_lower for keyword in ['injury', 'accident', 'fire', 'urgent', 'emergency', 'gunshot']):
+                            severity = SeverityLevel.HIGH
+                        elif any(keyword in text_lower for keyword in ['sick', 'minor', 'small', 'little']):
+                            severity = SeverityLevel.LOW
+                        else:
+                            severity = SeverityLevel.MEDIUM  # Default to medium
+                        
+                        # Generate mock location based on emergency type
+                        location_areas = {
+                            "MEDICAL": ["Downtown Hospital", "City Medical Center", "Emergency Room", "Health Plaza"],
+                            "FIRE": ["Residential Area", "Industrial District", "Suburban Neighborhood", "Commercial Complex"],
+                            "CRIME": ["Downtown", "Residential Street", "Shopping District", "Industrial Area"],
+                            "ACCIDENT": ["Highway 101", "Main Street", "Intersection", "Highway Exit 15"],
+                            "DISASTER": ["Downtown", "Residential Area", "Industrial Zone", "Coastal Region"]
+                        }
+                        
+                        location_options = location_areas.get(emergency_type.value, ["Unknown Location"])
+                        import random
+                        location = random.choice(location_options)
+                        
+                        explanation = "Mock explanation for testing"
+                        routing_decision = RoutingDecision(
+                            department=get_department_for_emergency(emergency_type),
+                            confidence=0.8
+                        )
+                        slm_result = {
+                            'emergency_type': emergency_type.value,
+                            'severity': severity.value,
+                            'emotion_intensity': 0.7,
+                            'confidence': 0.8,
+                            'features': {}
+                        }
+                        similar_scenarios = []
+                        relevant_procedures = []
+                    else:
+                        # Use SLM for enhanced classification
+                        slm_result = slm.predict_call_details(transcription)
+                        emergency_type = EmergencyType(slm_result['emergency_type'])
+                        severity = SeverityLevel(slm_result['severity'])
+                                    
+                        # Use knowledge base to find similar scenarios and enhance analysis
+                        similar_scenarios = knowledge_base.search_similar_scenarios(transcription, n_results=3)
+                                    
+                        # Use knowledge base to find relevant procedures
+                        relevant_procedures = knowledge_base.search_procedures(f"{emergency_type.value} {transcription}", n_results=2)
+                                    
+                        # Extract location
+                        location = location_service.extract_location(transcription)
+                                    
+                        # Generate explanation
+                        explanation = explanation_service.generate_explanation(transcription, emergency_type, severity)
+                                    
+                        # Create routing decision
+                        routing_decision = RoutingDecision(
+                            department=get_department_for_emergency(emergency_type),
+                            confidence=slm_result.get('confidence', 0.9)
+                        )
+                                
+                    # Calculate enhanced audio metrics
+                    noise_confidence = calculate_audio_quality(audio_data, audio_level, transcription)
+                    emotion_meter = slm_result.get('emotion_intensity', 0.5)
+                                
+                    # Create location data object
+                    location_obj = LocationData(
+                        latitude=location_data["latitude"],
+                        longitude=location_data["longitude"],
+                        area=location_data["area"]
+                    )
+                                    
+                    # Log the call data
+                    call_data = CallData(
+                        call_id=call_id,
+                        timestamp=datetime.utcnow(),
+                        transcript=transcription,
+                        predicted_class=emergency_type,
+                        severity=severity,
+                        routing_decision=routing_decision,
+                        confidence=slm_result.get('confidence', 0.9),
+                        explanation=explanation,
+                        location=location,
+                        location_data=location_obj,
+                        emotion_meter=emotion_meter,
+                        noise_confidence=noise_confidence,
+                        extracted_entities=slm_result['features'],
+                        language=current_language,
+                        audio_quality_metrics={
+                            "audio_level": audio_level,
+                            "noise_filtering": noise_filtering_enabled,
+                            "sample_rate": sample_rate
+                        }
+                    )
+                                
+                    log_call_data(call_data)
+                                
+                    # Generate mock location coordinates for demonstration
+                    location_data = generate_mock_location(location, emergency_type.value)
+                                    
+                    # Send response back to client
+                    response = {
+                        "transcript": transcription,
+                        "emergency_type": emergency_type.value,
+                        "severity": severity.value,
+                        "location": location,
+                        "location_data": location_data,
+                        "routing_decision": routing_decision.dict(),
+                        "explanation": explanation,
+                        "emotion_meter": emotion_meter,
+                        "noise_confidence": noise_confidence,
+                        "confidence": slm_result.get('confidence', 0.9),
+                        "language": current_language,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "audio_metrics": {
+                            "level": audio_level,
+                            "quality_score": noise_confidence
+                        },
+                        "similar_scenarios": [scenario['metadata'] for scenario in similar_scenarios] if not USE_MOCK_SERVICES else [],
+                        "relevant_procedures": [proc for proc in relevant_procedures] if not USE_MOCK_SERVICES else []
+                    }
+                    
+                    await websocket.send_json(response)
             
     except WebSocketDisconnect:
         logger.info(f"Call {call_id} disconnected")
@@ -226,6 +358,75 @@ async def websocket_transcribe(websocket: WebSocket, call_id: str):
                 logger.info(f"Recording saved: {recording_path}")
             del active_recordings[call_id]
         await websocket.close()
+
+# Helper function to generate mock location coordinates
+def generate_mock_location(location_text: str, emergency_type: str) -> dict:
+    """Generate mock latitude and longitude coordinates based on location description"""
+    # Base coordinates for different areas
+    areas = {
+        "downtown": {"lat": 40.7128, "lng": -74.0060},
+        "suburbia": {"lat": 40.7589, "lng": -73.9851},
+        "residential": {"lat": 40.7505, "lng": -73.9934},
+        "industrial": {"lat": 40.7282, "lng": -74.0776},
+        "highway": {"lat": 37.7749, "lng": -122.4194},
+        "main street": {"lat": 40.7128, "lng": -74.0060},
+        "oak ave": {"lat": 40.7589, "lng": -73.9851},
+        "pine rd": {"lat": 40.7505, "lng": -73.9934},
+        "default": {"lat": 40.7128, "lng": -74.0060}
+    }
+    
+    # Match location text to area
+    location_lower = location_text.lower() if location_text else ""
+    area_key = "default"
+    
+    for area in areas:
+        if area in location_lower:
+            area_key = area
+            break
+    
+    base_coords = areas[area_key]
+    
+    # Add small random offset for variety
+    import random
+    lat_offset = random.uniform(-0.01, 0.01)
+    lng_offset = random.uniform(-0.01, 0.01)
+    
+    return {
+        "latitude": round(base_coords["lat"] + lat_offset, 6),
+        "longitude": round(base_coords["lng"] + lng_offset, 6),
+        "area": area_key.title()
+    }
+
+# Helper function to calculate audio quality
+def calculate_audio_quality(audio_data: bytes, audio_level: float, transcription: str) -> float:
+    """Calculate audio quality score based on multiple factors"""
+    quality_score = 0.0
+    
+    # Factor 1: Audio level consistency (30% weight)
+    if 0.1 <= audio_level <= 0.9:  # Good audio level range
+        quality_score += 0.3
+    elif audio_level > 0.01:  # Detectable audio
+        quality_score += 0.15
+    
+    # Factor 2: Transcription length and content (40% weight)
+    if len(transcription) > 10:  # Meaningful transcription
+        quality_score += 0.2
+        if len(transcription) > 50:  # Good length
+            quality_score += 0.2
+        
+        # Check for common transcription artifacts that indicate poor quality
+        noisy_patterns = ['uh', 'um', 'ah', 'you know', 'like', 'so']
+        noise_count = sum(1 for pattern in noisy_patterns if pattern in transcription.lower())
+        noise_penalty = min(noise_count * 0.05, 0.2)
+        quality_score -= noise_penalty
+    
+    # Factor 3: Audio data characteristics (30% weight)
+    if len(audio_data) > 1000:  # Sufficient audio data
+        quality_score += 0.15
+    if len(audio_data) > 5000:  # Good amount of data
+        quality_score += 0.15
+    
+    return max(0.0, min(1.0, quality_score))
 
 def get_department_for_emergency(emergency_type: EmergencyType) -> str:
     """Map emergency type to appropriate department"""
@@ -290,23 +491,28 @@ async def simulate_call(scenario: str):
     scenarios = {
         "medical": {
             "text": "Help! My wife is unconscious and not breathing. She collapsed suddenly. Address is 123 Main St, Downtown. Please send an ambulance immediately!",
-            "expected_type": "MEDICAL"
+            "expected_type": "MEDICAL",
+            "expected_severity": "CRITICAL"
         },
         "fire": {
             "text": "There's a fire at my house! Smoke is everywhere, flames coming from the kitchen. Address is 456 Oak Ave, Suburbia. Need firefighters now!",
-            "expected_type": "FIRE"
+            "expected_type": "FIRE",
+            "expected_severity": "HIGH"
         },
         "crime": {
             "text": "Someone is breaking into my house! I hear glass breaking and footsteps. Address is 789 Pine Rd, Residential Area. Gunshots fired. Police needed immediately!",
-            "expected_type": "CRIME"
+            "expected_type": "CRIME",
+            "expected_severity": "HIGH"
         },
         "accident": {
             "text": "Car accident on Highway 101 near Exit 15. Multiple cars involved, people injured. Blood everywhere. Need ambulances and police.",
-            "expected_type": "ACCIDENT"
+            "expected_type": "ACCIDENT",
+            "expected_severity": "CRITICAL"
         },
         "disaster": {
             "text": "Tornado warning! Severe weather approaching downtown. Taking shelter in basement. Large debris flying. Need emergency management.",
-            "expected_type": "DISASTER"
+            "expected_type": "DISASTER",
+            "expected_severity": "CRITICAL"
         }
     }
     
@@ -316,14 +522,42 @@ async def simulate_call(scenario: str):
     scenario_data = scenarios[scenario]
     text = scenario_data["text"]
     
-    emergency_type = classification_service.classify_emergency(text)
-    severity = severity_service.calculate_severity(text)
-    location = location_service.extract_location(text)
-    explanation = explanation_service.generate_explanation(text, emergency_type, severity)
+    if USE_MOCK_SERVICES:
+        # Mock service responses
+        emergency_type = EmergencyType(scenario_data["expected_type"])  # Use expected type directly
+        severity = SeverityLevel(scenario_data["expected_severity"])  # Use expected severity from scenario
+        # Generate appropriate location based on scenario
+        location_areas = {
+            "medical": "Downtown Hospital",
+            "fire": "Residential Area",
+            "crime": "Downtown",
+            "accident": "Highway 101",
+            "disaster": "Downtown"
+        }
+        location = location_areas.get(scenario, "Unknown Location")
+        explanation = f"Mock simulation for {scenario} emergency"
+        routing_decision = RoutingDecision(
+            department=get_department_for_emergency(emergency_type),
+            confidence=0.8
+        )
+    else:
+        # Real service responses
+        emergency_type = classification_service.classify_emergency(text)
+        severity = severity_service.calculate_severity(text)
+        location = location_service.extract_location(text)
+        explanation = explanation_service.generate_explanation(text, emergency_type, severity)
+        
+        routing_decision = RoutingDecision(
+            department=get_department_for_emergency(emergency_type),
+            confidence=0.9
+        )
     
-    routing_decision = RoutingDecision(
-        department=get_department_for_emergency(emergency_type),
-        confidence=0.9  # Placeholder
+    # Generate location coordinates
+    location_coords = generate_mock_location(location, emergency_type.value)
+    location_obj = LocationData(
+        latitude=location_coords["latitude"],
+        longitude=location_coords["longitude"],
+        area=location_coords["area"]
     )
     
     result = {
@@ -332,6 +566,11 @@ async def simulate_call(scenario: str):
         "predicted_type": emergency_type.value,
         "severity": severity.value,
         "location": location,
+        "location_data": {
+            "latitude": location_obj.latitude,
+            "longitude": location_obj.longitude,
+            "area": location_obj.area
+        },
         "routing_decision": routing_decision.dict(),
         "explanation": explanation,
         "expected_type": scenario_data["expected_type"]

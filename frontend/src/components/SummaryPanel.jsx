@@ -118,9 +118,16 @@ const SummaryPanel = ({ callData }) => {
             {/* Extracted Location */}
             <div>
               <h3 className="text-sm font-medium text-gray-300 mb-1">Location</h3>
-              <p className="text-emergency-green">
-                {callData.location || callData.extracted_entities?.locations?.[0] || 'Location not specified'}
-              </p>
+              <div className="space-y-1">
+                <p className="text-emergency-green">
+                  {callData.location || callData.extracted_entities?.locations?.[0] || 'Location not specified'}
+                </p>
+                {callData.location_data && (
+                  <p className="text-xs text-gray-400">
+                    Coordinates: {callData.location_data.latitude?.toFixed(4)}, {callData.location_data.longitude?.toFixed(4)}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Key Risk Indicators */}
